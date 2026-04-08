@@ -7,10 +7,20 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
+# Local environment
+.env
+
 # OS metadata
 .DS_Store
 __MACOSX/
 
+# Generated outputs
+agent_result/
+agent_result_old/
+results/
+stage1_result/
+stage2_result/
+outputs/
 
 # Model / training artifacts
 Qwen3-VL-2B-Click-NewPlan1/
@@ -25,5 +35,9 @@ UI-TARS-1.5-7B-Click-25/
 *.tar
 *.gz
 
+# Optional local data
+data/
+figure/
 
-
+# Private configuration files
+HFCode

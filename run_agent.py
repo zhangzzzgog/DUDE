@@ -338,5 +338,4 @@ def run_gui_agent_on_small_deception(
 
 
 if __name__ == "__main__":
-    # 简单命令行入口：直接跑前几个样本（使用本地 Qwen3-VL 模型）
     run_gui_agent_on_small_deception(max_samples=200)

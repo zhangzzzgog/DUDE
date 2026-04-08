@@ -1,4 +1,4 @@
-import os
+﻿import os
 import time
 import json
 # os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
@@ -19,16 +19,17 @@ from src import hybrid_label_confidence_reward
 from src import load_local_dataset
 from src import make_conversation
 from src import Local
+from src.config import SETTINGS
 
 
 
 class IntegratedTrainOptimize:
     def __init__(self, 
-                 model_id="Qwen/Qwen2.5-VL-3B-Instruct",
-                 data_path="data/small_deception.json",
-                 images_dir="data/images",
-                 output_dir="Qwen2.5-VL-3B-Click-NewPlan3",
-                 device="cpu",
+                 model_id=SETTINGS.default_local_model,
+                 data_path=SETTINGS.data_path,
+                 images_dir=SETTINGS.images_dir,
+                 output_dir=os.path.join(SETTINGS.output_dir, "train"),
+                 device=SETTINGS.default_device,
                  use_api=False,
                  api_key=None,
                  base_url=None):
@@ -39,33 +40,32 @@ class IntegratedTrainOptimize:
         self.output_dir = output_dir
         self.device = device
         
-        # 初始化数据集
+        # 鍒濆鍖栨暟鎹泦
         self.dataset = None
         self.train_dataset = None
         self.test_dataset = None
         
-        # 初始化模型和处理器
+        # 鍒濆鍖栨ā鍨嬪拰澶勭悊鍣?
         self.model = None
         self.processor = None
         
-        # 训练后的模型路径
+        # 璁粌鍚庣殑妯″瀷璺緞
         self.trained_model_path = None
 
-        if use_api:
-            self.API_KEY = api_key
-            self.BASE_URL = base_url
+        self.API_KEY = api_key or SETTINGS.zhipuai_api_key
+        self.BASE_URL = base_url or SETTINGS.base_url
         
     def load_data(self, test_size=0.2, seed=42):
-        """加载和准备数据集"""
+        """鍔犺浇鍜屽噯澶囨暟鎹泦"""
        
         print("Loading dataset...")
         self.dataset = load_local_dataset(self.data_path, self.images_dir, load_images=False,Train=True)
         # self.dataset = load_local_dataset(self.data_path, self.images_dir, load_images=False,Train=True, shuffle=shuffle, seed=seed)
 
-        # Shuffle数据集（没有必要，split函数自己会分）
+        # Shuffle鏁版嵁闆嗭紙娌℃湁蹇呰锛宻plit鍑芥暟鑷繁浼氬垎锛?
         # self.dataset = shuffle(self.dataset, seed)
 
-        # 分割数据集
+        # 鍒嗗壊鏁版嵁闆?
         split_dataset = self.dataset.train_test_split(test_size=test_size, seed=seed)
         print("======================")
         print(split_dataset["train"][0])
@@ -77,13 +77,13 @@ class IntegratedTrainOptimize:
         self.test_dataset = split_dataset['test']
         print(f"LEN {len(self.test_dataset)}")
 
-        # 格式化训练数据
+        # 鏍煎紡鍖栬缁冩暟鎹?
         self.train_dataset = self.train_dataset.map(make_conversation)
         print("==========ATTENTION NOW============")
         print(self.train_dataset[0])
         print("======================")
 
-        # 在训练模式下，将生成的 records 保存为 jsonl，文件名为 stage1_result + 时间戳.jsonl
+        # 鍦ㄨ缁冩ā寮忎笅锛屽皢鐢熸垚鐨?records 淇濆瓨涓?jsonl锛屾枃浠跺悕涓?stage1_result + 鏃堕棿鎴?jsonl
         out_dir = os.path.join(os.getcwd(), "stage1_result")
         os.makedirs(out_dir, exist_ok=True)
         ts = int(time.time())
@@ -100,20 +100,20 @@ class IntegratedTrainOptimize:
         print(f"Loaded {len(self.train_dataset)} training samples and {len(self.test_dataset)} test samples")
         
     def setup_model(self):
-        """设置模型和处理器"""
+        """璁剧疆妯″瀷鍜屽鐞嗗櫒"""
         print("Setting up model and processor...")
         
-        # 加载处理器
+        # 鍔犺浇澶勭悊鍣?
         self.processor = AutoProcessor.from_pretrained(self.model_id, use_fast=True, padding_side="left")
         
-        # 加载模型
+        # 鍔犺浇妯″瀷
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             pretrained_model_name_or_path=self.model_id,
             torch_dtype=torch.bfloat16,
             device_map=self.device,
         )
         
-        # 设置LoRA配置
+        # 璁剧疆LoRA閰嶇疆
         lora_config = LoraConfig(
             task_type="CAUSAL_LM",
             r=8,
@@ -125,7 +125,7 @@ class IntegratedTrainOptimize:
         self.model = get_peft_model(self.model, lora_config)
         self.model.print_trainable_parameters()
         
-        # 添加安全的批处理解码方法
+        # 娣诲姞瀹夊叏鐨勬壒澶勭悊瑙ｇ爜鏂规硶
         def safe_batch_decode(self, sequences, **kwargs):
             pad_id = self.tokenizer.pad_token_id or 0
             vocab_size = len(self.tokenizer)
@@ -156,10 +156,10 @@ class IntegratedTrainOptimize:
 
         self.processor.batch_decode = MethodType(safe_batch_decode, self.processor)
 
-    #可选在线模型轻量化启动
+    #鍙€夊湪绾挎ā鍨嬭交閲忓寲鍚姩
     def setup_cloud_model(self):
         self.model =  GLM(
-                model_name="glm-4.6v",
+                model_name=SETTINGS.default_eval_model,
                 api_key=self.API_KEY,
                 SYSTEM_PROMPT=""
             )
@@ -174,22 +174,22 @@ class IntegratedTrainOptimize:
                    logging_steps=10,
                    save_steps=10,
                    reward_type="combined"):
-        """训练基座模型"""
+        """璁粌鍩哄骇妯″瀷"""
         print("Starting model training...")
         
-        # 生成带时间戳的单次训练记录文件（简单模式），并传入 run_ts
+        # 鐢熸垚甯︽椂闂存埑鐨勫崟娆¤缁冭褰曟枃浠讹紙绠€鍗曟ā寮忥級锛屽苟浼犲叆 run_ts
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         recorded_basename = f"recorded_samples_{ts}.jsonl"
         recorded_path = os.path.join(self.output_dir, recorded_basename)
         os.makedirs(self.output_dir, exist_ok=True)
-        # 使用最小化修改：不要传入 functools.partial（没有 __name__），
-        # 而是传入一个具名 wrapper，使 GRPOTrainer 能读取 __name__。
-        # 捕获 snapshot 路径到闭包，确保序列化到 worker 时仍可访问（更稳健）
+        # 浣跨敤鏈€灏忓寲淇敼锛氫笉瑕佷紶鍏?functools.partial锛堟病鏈?__name__锛夛紝
+        # 鑰屾槸浼犲叆涓€涓叿鍚?wrapper锛屼娇 GRPOTrainer 鑳借鍙?__name__銆?
+        # 鎹曡幏 snapshot 璺緞鍒伴棴鍖咃紝纭繚搴忓垪鍖栧埌 worker 鏃朵粛鍙闂紙鏇寸ǔ鍋ワ級
         snapshot = getattr(self, 'stage1_snapshot_path', None)
         def _reward_wrapper(*a, **kw):
             return hybrid_label_confidence_reward(*a, recorded_samples_path=recorded_path, snapshot_path=snapshot, run_ts=ts, **kw)
 
-        # 保证有可读的名字
+        # 淇濊瘉鏈夊彲璇荤殑鍚嶅瓧
         try:
             _reward_wrapper.__name__ = getattr(hybrid_label_confidence_reward, "__name__", "hybrid_label_confidence_reward")
         except Exception:
@@ -197,7 +197,7 @@ class IntegratedTrainOptimize:
 
         reward_funcs = [_reward_wrapper]
         
-        # 配置训练参数
+        # 閰嶇疆璁粌鍙傛暟
         training_args = GRPOConfig(
             output_dir=self.output_dir,
             learning_rate=learning_rate,
@@ -213,7 +213,7 @@ class IntegratedTrainOptimize:
             save_steps=save_steps,
         )
         
-        # 创建训练器
+        # 鍒涘缓璁粌鍣?
         trainer = GRPOTrainer(
             model=self.model,
             processing_class=self.processor,
@@ -222,17 +222,17 @@ class IntegratedTrainOptimize:
             train_dataset=self.train_dataset,
         )
         
-        # 开始训练
+        # 寮€濮嬭缁?
         trainer.train()
         
-        # 保存模型
+        # 淇濆瓨妯″瀷
         trainer.save_model(self.output_dir)
         self.trained_model_path = self.output_dir
         
         print(f"Model training completed. Model saved to {self.output_dir}")
         
     def load_trained_model(self, model_path=None):
-        """加载训练好的模型用于优化"""
+        """鍔犺浇璁粌濂界殑妯″瀷鐢ㄤ簬浼樺寲"""
         if model_path is None:
             model_path = self.trained_model_path
         
@@ -241,14 +241,14 @@ class IntegratedTrainOptimize:
         
         print(f"Loading trained model from {model_path}...")
         
-        # 创建本地Agent实例
+        # 鍒涘缓鏈湴Agent瀹炰緥
         self.agent = Local(
             model_name="Qwen/Qwen2.5-VL-3B-Instruct",
             SYSTEM_PROMPT="",
             tools=[]
         )
         
-        # 加载训练好的权重
+        # 鍔犺浇璁粌濂界殑鏉冮噸
         from peft import PeftModel
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             self.model_id,
@@ -263,37 +263,37 @@ class IntegratedTrainOptimize:
     def run_full_pipeline(self, 
                          train_params=None,
                          optimize_params=None):
-        """运行完整的训练和优化流水线"""
+        """杩愯瀹屾暣鐨勮缁冨拰浼樺寲娴佹按绾?""
         print("Starting full training and optimization pipeline...")
         
-        # 1. 加载数据
+        # 1. 鍔犺浇鏁版嵁
         self.load_data()
         
-        # 2. 设置模型
+        # 2. 璁剧疆妯″瀷
         self.setup_model()
         
-        # 3. 训练模型
+        # 3. 璁粌妯″瀷
         train_params = train_params or {}
         self.train_model(**train_params)
         
 
 def main():
-    """主函数示例"""
-    # 创建整合的训练和优化系统
+    """涓诲嚱鏁扮ず渚?""
+    # 鍒涘缓鏁村悎鐨勮缁冨拰浼樺寲绯荤粺
     system = IntegratedTrainOptimize()
     
-    # 运行完整流水线，使用新的组合奖励函数适配当前数据集结构
+    # 杩愯瀹屾暣娴佹按绾匡紝浣跨敤鏂扮殑缁勫悎濂栧姳鍑芥暟閫傞厤褰撳墠鏁版嵁闆嗙粨鏋?
     results = system.run_full_pipeline(
         train_params={
             'learning_rate': 1e-5,
             'num_train_epochs': 1,
             'per_device_train_batch_size': 2,
-            'reward_type': 'combined',  # 使用组合奖励：正确点击 + 暗模式避免
-            # 可选奖励类型：
-            # 'combined' - 组合奖励（推荐，适配当前数据集）
-            # 'correct_only' - 仅正确点击奖励
-            # 'dark_avoidance' - 仅暗模式避免奖励
-            # 'legacy' - 使用原始click_accuracy_reward（向后兼容）
+            'reward_type': 'combined',  # 浣跨敤缁勫悎濂栧姳锛氭纭偣鍑?+ 鏆楁ā寮忛伩鍏?
+            # 鍙€夊鍔辩被鍨嬶細
+            # 'combined' - 缁勫悎濂栧姳锛堟帹鑽愶紝閫傞厤褰撳墠鏁版嵁闆嗭級
+            # 'correct_only' - 浠呮纭偣鍑诲鍔?
+            # 'dark_avoidance' - 浠呮殫妯″紡閬垮厤濂栧姳
+            # 'legacy' - 浣跨敤鍘熷click_accuracy_reward锛堝悜鍚庡吋瀹癸級
         },
         optimize_params={
             'select_num': 25,
@@ -302,7 +302,7 @@ def main():
         }
     )
     
-    # 保存优化结果
+    # 淇濆瓨浼樺寲缁撴灉
     import json
     with open("optimization_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
@@ -311,20 +311,20 @@ def main():
 
 
 def demo_reward_types():
-    """演示不同奖励类型的使用"""
-    print("演示不同奖励类型的使用...")
+    """婕旂ず涓嶅悓濂栧姳绫诲瀷鐨勪娇鐢?""
+    print("婕旂ず涓嶅悓濂栧姳绫诲瀷鐨勪娇鐢?..")
     
     system = IntegratedTrainOptimize()
     system.load_data()
     system.setup_model()
     
-    # 测试不同奖励类型
+    # 娴嬭瘯涓嶅悓濂栧姳绫诲瀷
     reward_types = ['v2_reward']
     
     for reward_type in reward_types:
-        print(f"\n=== 测试奖励类型: {reward_type} ===")
+        print(f"\n=== 娴嬭瘯濂栧姳绫诲瀷: {reward_type} ===")
         
-        # 只训练1个epoch作为演示
+        # 鍙缁?涓猠poch浣滀负婕旂ず
         try:
             system.train_model(
                 num_train_epochs=1,
@@ -333,11 +333,13 @@ def demo_reward_types():
                 logging_steps=5,
                 save_steps=10
             )
-            print(f"✅ 奖励类型 '{reward_type}' 训练成功")
+            print(f"鉁?濂栧姳绫诲瀷 '{reward_type}' 璁粌鎴愬姛")
         except Exception as e:
-            print(f"❌ 奖励类型 '{reward_type}' 训练失败: {e}")
+            print(f"鉂?濂栧姳绫诲瀷 '{reward_type}' 璁粌澶辫触: {e}")
 
 
 if __name__ == "__main__":
     main()
     # demo_reward_types()
+
+
