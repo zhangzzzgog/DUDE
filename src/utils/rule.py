@@ -24,28 +24,6 @@ def generate_empty_clicks(sample, num=1, seed=42):
             
     return [{"coordinates": null_click, "label": -1} for null_click in null_clicks]
 
-'''
-def generate_empty_clicks2(sample, num=1, seed=42):
-"""
-        为一个样本仅生成空的坐标和标签（一般是1个，但是不保证1个）。
-        - 无感empty_box 中心点
-"""
-    # 获取图像宽高，容错处理
-    width = sample.get("image_width")
-    height = sample.get("image_height")
-
-    out = {}
-    rng = random.Random(seed)
-
-    for i in range(num):
-        x = round(rng.uniform(0, max(width, 0)), 2)
-        y = round(rng.uniform(0, max(height, 0)), 2)
-        # 使用 1-based 索引命名：第几个就 empty几（empty1, empty2, ...）
-        key = f"empty{ i+1 }"
-        out[key] = {"coordinates": (x, y), "label": 0}
-
-    return out
-'''
 
 def generate_clicks(sample):
     """
@@ -94,11 +72,3 @@ def generate_clicks_2(sample):
     return {
         "benign": {"coordinates": benign_click, "label": 1}
     }
-
-# 示例：处理第一个样本
-# with open("dataset/annotations/annotation.jsonl", "r", encoding="utf-8") as f:
-#     samples = [json.loads(line) for line in f]
-
-# sample = samples[0]  # ID=5001
-# clicks = generate_clicks(sample)
-# print(json.dumps(clicks, ensure_ascii=False, indent=4))

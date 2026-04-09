@@ -3,16 +3,13 @@ from .parser import parse_agent_output
 from .prompt_template import static_template
 from numpy import random
 
-import base64
-import os
 
 import ast
-import inspect
 import os
 import re
 from string import Template
 from typing import List, Callable, Tuple, Any, Dict
-import json
+
 from src.config import require_zhipuai_api_key
 
 class ReActAgent:
@@ -67,15 +64,6 @@ class ReActAgent:
             from .model import GLMFlashBackend
 
             self.client = GLMFlashBackend(
-                model_name=self.model,
-                SYSTEM_PROMPT=None,
-                tools=[],
-                device=self.device,
-            )
-        elif backend == "holo2":
-            from .model import Holo2Backend
-
-            self.client = Holo2Backend(
                 model_name=self.model,
                 SYSTEM_PROMPT=None,
                 tools=[],
