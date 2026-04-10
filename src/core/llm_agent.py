@@ -1,16 +1,10 @@
-﻿from .model import Local,GLM
-from .parser import parse_agent_output
+﻿from .model import build_backend
+from .parser import parse_action_call, extract_action, extract_final_answer, extract_thought
 from .prompt_template import static_template
-from numpy import random
 
-
-import ast
 import os
-import re
 from string import Template
-from typing import List, Callable, Tuple, Any, Dict
-
-from src.config import require_zhipuai_api_key
+from typing import List, Callable
 
 class ReActAgent:
     def __init__(
@@ -37,43 +31,7 @@ class ReActAgent:
         self.project_directory = project_directory
         self.backend = backend
         self.device = device
-
-        if backend == "glm":
-            self.client = GLM(
-                model_name=self.model,
-                api_key=require_zhipuai_api_key(),
-                tools=[],
-            )
-        elif backend == "qwen3_local":
-            from .model import Qwen3VLBackend
-
-            self.client = Qwen3VLBackend(
-                model_name=self.model,
-                SYSTEM_PROMPT=None,
-                tools=[],
-                device=self.device,
-            )
-        elif backend == "uitars":
-            from .model import UITARSBackend
-
-            self.client = UITARSBackend(
-                model_name=self.model,
-                SYSTEM_PROMPT=None,
-                tools=[],
-                device=self.device,
-            )
-        elif backend == "glm_flash":
-            from .model import GLMFlashBackend
-
-            self.client = GLMFlashBackend(
-                model_name=self.model,
-                SYSTEM_PROMPT=None,
-                tools=[],
-                device=self.device,
-            )
-        else:
-            raise ValueError(f"Unsupported backend: {backend}")
-
+        self.client = build_backend(backend=backend, model_name=self.model, device=self.device)
         self.experience = "To be update"
 
     def run(self, user_input: str|None=None, image_paths: List[str]|None=None, max_steps: int=3):
@@ -118,30 +76,25 @@ class ReActAgent:
             step_count += 1
 
             # Parse the <thought> section when present.
-            thought_match = re.search(r"<thought>(.*?)</thought>", content, re.DOTALL)
-            if thought_match:
-                thought = thought_match.group(1)
+            thought = extract_thought(content)
+            if thought is not None:
                 print(f"Thought: {thought}")
 
             # Return immediately when the model emits a final answer.
-            if "<final_answer>" in content:
-                try:
-                    final_answer = re.search(r"<final_answer>(.*?)</final_answer>", content, re.DOTALL)
-                    return final_answer.group(1)
-                except AttributeError: # solely <> without </>
-                    final_answer = re.search(r"<final_answer>(.*?)", content, re.DOTALL)
+            final_answer = extract_final_answer(content)
+            if final_answer is not None:
+                if "</final_answer>" not in content:
                     print("[Error]: solely <final_answer> without </>")
-                    return final_answer.group(1)
+                return final_answer
 
             # Parse the <action> section.
-            action_match = re.search(r"<action>(.*?)</action>", content, re.DOTALL)
-            if not action_match:
+            action = extract_action(content)
+            if action is None:
                 print("[Error]: Unmatch")
                 print("[UNmatch]:",content)
                 continue
 
-            action = action_match.group(1)
-            tool_name, args, kwargs = self.parse_action(action)
+            tool_name, args, kwargs = parse_action_call(action)
             print(f"Parameter Phase Action: {tool_name}")
 
             # Format positional and keyword arguments for readable logging.
@@ -162,7 +115,6 @@ class ReActAgent:
             print(f"Observation: {observation}")
             obs_msg = f"<observation>{observation}</observation>"
             messages.append({"role": "user", "content": obs_msg})
-
 
     def get_tool_list(self) -> str:
         """Return one formatted line of documentation for each registered tool."""
@@ -185,7 +137,6 @@ class ReActAgent:
             # operating_system=self.get_operating_system_name(),
             tool_list=tool_list,
             experience=self.experience
-            # file_list=file_list
         )
 
     def call_model(self, messages):
@@ -197,108 +148,4 @@ class ReActAgent:
         content = response.choices[0].message.content
         messages.append({"role": "assistant", "content": content})
         return content
-
-    def parse_action(self, code_str: str) -> Tuple[str, List[Any], Dict[str, Any]]:
-        match = re.match(r'(\w+)\((.*)\)', code_str, re.DOTALL)
-        if not match:
-            return  "Final Answer should be provided instead of action" , [], {}
-
-        func_name = match.group(1)
-        args_str = match.group(2).strip()
-
-        args = []
-        kwargs = {}
-
-        current = ""
-        in_string = False
-        string_char = None
-        paren = bracket = brace = 0
-        i = 0
-
-        def flush_token(token):
-            token = token.strip()
-            if not token:
-                return
-
-            # keyword argument?  key=value
-            if '=' in token and not token.startswith(('{"', "{'", "[")):  
-                # split only at top-level '='
-                key, value = token.split('=', 1)
-                key = key.strip()
-                kwargs[key] = self._parse_single_arg(value.strip())
-            else:
-                args.append(self._parse_single_arg(token))
-
-        while i < len(args_str):
-            ch = args_str[i]
-
-            if not in_string:
-                if ch in ['"', "'"]:
-                    in_string = True
-                    string_char = ch
-                    current += ch
-                elif ch == '(':
-                    paren += 1; current += ch
-                elif ch == ')':
-                    paren -= 1; current += ch
-                elif ch == '[':
-                    bracket += 1; current += ch
-                elif ch == ']':
-                    bracket -= 1; current += ch
-                elif ch == '{':
-                    brace += 1; current += ch
-                elif ch == '}':
-                    brace -= 1; current += ch
-                elif ch == ',' and paren == bracket == brace == 0:
-                    flush_token(current)
-                    current = ""
-                else:
-                    current += ch
-            else:
-                current += ch
-                if ch == string_char and args_str[i-1] != '\\':
-                    in_string = False
-                    string_char = None
-
-            i += 1
-
-        if current.strip():
-            flush_token(current)
-
-        return func_name, args, kwargs
-
-    def _parse_single_arg(self, arg_str: str):
-        arg_str = arg_str.strip()
-
-        # Handle both plain quoted strings and extra-escaped strings returned by some models.
-        # Example 1: "China"
-        # Example 2: \"China\"
-        if (
-            (arg_str.startswith('"') and arg_str.endswith('"')) or
-            (arg_str.startswith('\\"') and arg_str.endswith('\\"'))
-        ):
-            # Normalize the outer quoting layer before unescaping the content.
-            s = arg_str
-
-            # Case like \"China\" -> strip first and last \"
-            if s.startswith('\\"') and s.endswith('\\"'):
-                s = s[2:-2]
-
-            # Case like "China" -> strip quotes normally
-            elif s.startswith('"') and s.endswith('"'):
-                s = s[1:-1]
-
-            # Decode common escape sequences left in the model output.
-            s = s.replace('\\"', '"')
-            s = s.replace("\\'", "'")
-            s = s.replace('\\\\', '\\')
-            s = s.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-
-            return s
-
-        # Fall back to literal_eval for numbers, dicts, lists, and tuples.
-        try:
-            return ast.literal_eval(arg_str)
-        except Exception:
-            return arg_str
 

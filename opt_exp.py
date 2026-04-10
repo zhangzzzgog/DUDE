@@ -19,7 +19,7 @@ from src import format_url,extract_xml,add_row
 from src import load_local_dataset
 from src import make_conversation
 from src import Local, GLM
-from src.evaluator.template import static_template
+from src.evaluator.template import system_prompt
 from src.config import SETTINGS, require_zhipuai_api_key
 
 
@@ -114,7 +114,7 @@ class EvalEXP:
                 "You are an experienceful optimizer for a web browsing click evaluator."
                 "Your job is to provide an experience context to help evaluator know why it failed on judging the following f_samples"
                 "Here you can see the static evaluator system prompt template:"
-                f"{static_template}"
+                f"{system_prompt}"
                 "Given the a batch of failure f_samples (beware there are sample failed more than one time!),"
                 "Each sample contains a screenshot, the user task and output click coordinate,"
                 "You can think carefully, consider your previous experience and need to output exactly like:"
@@ -204,7 +204,7 @@ class EvalEXP:
                 sample_image_url = format_url(sample["image_path_normalized"][0])
                 
                 message = [
-                    {"role": "system", "content": exp + "\n" + static_template},
+                    {"role": "system", "content": exp + "\n" + system_prompt},
                     {
                         "role": "user",
                         "content": [
