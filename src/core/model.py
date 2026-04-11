@@ -357,6 +357,29 @@ class GLMFlashBackend(BaseLocalBackend):
     model_class = Glm4vForConditionalGeneration
     needs_token_type_cleanup = True
 
+def _resolve_local_backend_class(model_name: str):
+    """Infer the local backend class directly from the model name.
+
+    Note:
+        Remote GLM API routing is intentionally not handled here yet.
+        This factory currently supports only local multimodal backends.
+    """
+    name = model_name.lower()
+    if "qwen3" in name:
+        return Qwen3VLBackend
+    if "ui-tars" in name or "ui_tars" in name:
+        return UITARSBackend
+    if "glm-4.6v-flash" in name or "glm_flash" in name:
+        return GLMFlashBackend
+
+    raise ValueError(f"Unsupported model_name for local backend: {model_name}")
+
+
+def build_backend(model_name: str, device: str | None = None):
+    """Unified local backend factory used by ReActAgent."""
+    client_cls = _resolve_local_backend_class(model_name)
+    return client_cls(model_name=model_name, device=device)
+
 def build_backend(backend: str, model_name: str, device: str | None = None):
     """Unified backend factory used by ReActAgent."""
     if backend == "glm":
@@ -375,8 +398,27 @@ def build_backend(backend: str, model_name: str, device: str | None = None):
     if client_cls is None:
         supported = ", ".join(["glm", *local_backends.keys()])
         raise ValueError(f"Unsupported backend: {backend}. Supported: {supported}")
+    
+    return client_cls(model_name=model_name, device=device)
 
-    if device is None:
-        return client_cls(model_name=model_name)
+def build_backend(backend: str, model_name: str, device: str | None = None):
+    """Unified backend factory used by ReActAgent."""
+    if backend == "glm":
+        return GLM(
+            model_name=model_name,
+            api_key=None,
+            tools=[],
+        )
+
+    local_backends = {
+        "qwen3_local": Qwen3VLBackend,
+        "uitars": UITARSBackend,
+        "glm_flash": GLMFlashBackend,
+    }
+    client_cls = local_backends.get(backend)
+    if client_cls is None:
+        supported = ", ".join(["glm", *local_backends.keys()])
+        raise ValueError(f"Unsupported backend: {backend}. Supported: {supported}")
+    
     return client_cls(model_name=model_name, device=device)
 

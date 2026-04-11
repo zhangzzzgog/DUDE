@@ -5,6 +5,7 @@ from .prompt_template import static_template
 import os
 from string import Template
 from typing import List, Callable
+import inspect
 
 class ReActAgent:
     def __init__(
@@ -12,7 +13,6 @@ class ReActAgent:
         tools: List[Callable],
         model: str,
         project_directory: str,
-        backend: str = "uitars",
         device: str | None = None,
     ):
         
@@ -20,18 +20,16 @@ class ReActAgent:
 
         Args:
             tools: Tool functions available to the model.
-            model: Model identifier, for example "glm-4.6v" or "Qwen/Qwen3-VL-4B-Instruct".
+            model: Model identifier, for example "Qwen/Qwen3-VL-4B-Instruct".
             project_directory: Project root used by the agent prompt.
-            backend: Backend selector such as "glm", "qwen3_local", or "uitars".
             device: Optional runtime device, for example "cuda" or "cpu".
         """
 
         self.tools = {func.__name__: func for func in tools}
         self.model = model
         self.project_directory = project_directory
-        self.backend = backend
         self.device = device
-        self.client = build_backend(backend=backend, model_name=self.model, device=self.device)
+        self.client = build_backend(model_name=self.model, device=self.device)
         self.experience = "To be update"
 
     def run(self, user_input: str|None=None, image_paths: List[str]|None=None, max_steps: int=3):
