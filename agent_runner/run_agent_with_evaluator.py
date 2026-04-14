@@ -4,9 +4,9 @@ import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .llm_agent import ReActAgent
-from src.core.model import Local
-from src.core.parser import extract_xml
-from src.evaluator.template import system_prompt
+from src.model import Local
+from src.parser import extract_xml
+from src.template import system_prompt
 
 
 # Global environment pointer used by the click tool.
@@ -469,6 +469,7 @@ def run_gui_agent_on_small_deception(
 # Simple CLI entrypoint for running a subset of samples.
 if __name__ == "__main__":
     run_gui_agent_on_small_deception(max_samples=DEFAULT_MAX_SAMPLES)
+
 
 
 

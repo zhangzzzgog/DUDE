@@ -380,6 +380,7 @@ def build_backend(model_name: str, device: str | None = None):
     client_cls = _resolve_local_backend_class(model_name)
     return client_cls(model_name=model_name, device=device)
 
+'''
 def build_backend(backend: str, model_name: str, device: str | None = None):
     """Unified backend factory used by ReActAgent."""
     if backend == "glm":
@@ -400,25 +401,5 @@ def build_backend(backend: str, model_name: str, device: str | None = None):
         raise ValueError(f"Unsupported backend: {backend}. Supported: {supported}")
     
     return client_cls(model_name=model_name, device=device)
-
-def build_backend(backend: str, model_name: str, device: str | None = None):
-    """Unified backend factory used by ReActAgent."""
-    if backend == "glm":
-        return GLM(
-            model_name=model_name,
-            api_key=None,
-            tools=[],
-        )
-
-    local_backends = {
-        "qwen3_local": Qwen3VLBackend,
-        "uitars": UITARSBackend,
-        "glm_flash": GLMFlashBackend,
-    }
-    client_cls = local_backends.get(backend)
-    if client_cls is None:
-        supported = ", ".join(["glm", *local_backends.keys()])
-        raise ValueError(f"Unsupported backend: {backend}. Supported: {supported}")
-    
-    return client_cls(model_name=model_name, device=device)
+'''
 

@@ -1,5 +1,5 @@
-from src.core.model import build_backend
-from src.core.parser import parse_action_call, extract_action, extract_final_answer, extract_thought
+from src.model import build_backend
+from src.parser import parse_action_call, extract_action, extract_final_answer, extract_thought
 from .prompt_template import static_template
 
 import os
@@ -146,6 +146,7 @@ class ReActAgent:
         content = response.choices[0].message.content
         messages.append({"role": "assistant", "content": content})
         return content
+
 
 
 

@@ -3,13 +3,13 @@ import json
 import random
 import re
 
-from PIL import Image
+from datetime import datetime
 from datasets import Dataset, concatenate_datasets
 
 from train.formatter import format_url
-from src.core.parser import extract_xml
-from src.core.model import Local, GLM
-from src.evaluator.template import static_template
+from src.parser import extract_xml
+from src.model import Local, GLM
+from src.template import static_template
 from src.config import SETTINGS, require_zhipuai_api_key
 
 # --- Runtime defaults ---
@@ -305,6 +305,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

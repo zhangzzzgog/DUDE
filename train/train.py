@@ -13,7 +13,7 @@ from types import MethodType
 from train.reward import hybrid_label_confidence_reward
 from train.datasets import load_local_dataset
 from train.formatter import make_conversation
-from src.core.model import Local
+from src.model import Local
 from src.config import SETTINGS
 
 
@@ -300,6 +300,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
