@@ -1,6 +1,13 @@
-﻿# DUDE-RUCBenchmark
+﻿
 
-Codebase for the ACL 2026 submission on DUDE-RUCBenchmark. The repository focuses on evaluating and improving web-browsing click judgments under deceptive UI conditions, including local multimodal evaluators, GLM-based experience summarization, and supporting data-processing scripts.
+# Don’t Click That: Teaching Web Agents to Resist Deceptive Interfaces
+<p align="center">
+  <!-- <a href="https://xiaowu0162.github.io/long-mem-eval/"><img src="https://img.shields.io/badge/🌐-Website-red" height="23"></a> -->
+  <a href="TODO"><img src="https://img.shields.io/badge/📝-Paper (ACL 2026)-blue" height="23"></a>
+  <a href="https://huggingface.co/datasets/Ink0722/RUC" ><img src="https://img.shields.io/badge/🤗-Data-green" height="23"></a>
+</p>
+
+Codebase for the ACL 2026 submission on Don’t Click That: Teaching Web Agents to Resist Deceptive Interfaces. The repository focuses on evaluating and improving web-browsing click judgments under deceptive UI conditions, including local multimodal evaluators, GLM-based experience summarization, and supporting data-processing scripts.
 
 ## Repository Layout
 
